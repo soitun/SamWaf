@@ -16,6 +16,7 @@ type NotifyLog struct {
 	MessageType    string `json:"message_type"`    // 消息类型
 	MessageTitle   string `json:"message_title"`   // 消息标题
 	MessageContent string `json:"message_content"` // 消息内容
+	Recipients     string `json:"recipients"`      // 收件人（仅邮件类型）
 	Status         int    `json:"status"`          // 发送状态：1成功，0失败
 	ErrorMsg       string `json:"error_msg"`       // 错误信息
 	SendTime       string `json:"send_time"`       // 发送时间

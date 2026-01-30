@@ -79,6 +79,13 @@ func NewEmailNotifier(configJSON string) (*EmailNotifier, error) {
 	}, nil
 }
 
+// SetRecipients 设置收件人（用于订阅级别的收件人配置）
+func (e *EmailNotifier) SetRecipients(recipients []string) {
+	if len(recipients) > 0 {
+		e.ToEmails = recipients
+	}
+}
+
 // SendMarkdown 发送Markdown格式消息（转换为HTML）
 func (e *EmailNotifier) SendMarkdown(title, content string) error {
 	// 将Markdown格式转换为简单的HTML

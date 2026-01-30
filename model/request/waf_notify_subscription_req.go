@@ -4,6 +4,7 @@ package request
 type WafNotifySubscriptionAddReq struct {
 	ChannelId   string `json:"channel_id" binding:"required"`
 	MessageType string `json:"message_type" binding:"required"`
+	Recipients  string `json:"recipients"`
 	Status      int    `json:"status"`
 	FilterJSON  string `json:"filter_json"`
 	Remarks     string `json:"remarks"`
@@ -14,6 +15,7 @@ type WafNotifySubscriptionEditReq struct {
 	Id          string `json:"id" binding:"required"`
 	ChannelId   string `json:"channel_id" binding:"required"`
 	MessageType string `json:"message_type" binding:"required"`
+	Recipients  string `json:"recipients"`
 	Status      int    `json:"status"`
 	FilterJSON  string `json:"filter_json"`
 	Remarks     string `json:"remarks"`

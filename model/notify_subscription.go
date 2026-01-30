@@ -12,6 +12,7 @@ type NotifySubscription struct {
 	baseorm.BaseOrm
 	ChannelId   string `json:"channel_id"`   // 关联的渠道ID
 	MessageType string `json:"message_type"` // 消息类型：user_login, attack_info, weekly_report等
+	Recipients  string `json:"recipients"`   // 收件人列表（逗号分隔，主要用于邮件类型）留空则使用渠道默认收件人
 	Status      int    `json:"status"`       // 状态：1启用，0禁用
 	FilterJSON  string `json:"filter_json"`  // 过滤条件（JSON格式）
 	Remarks     string `json:"remarks"`      // 备注
