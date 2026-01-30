@@ -483,6 +483,34 @@ func RunCoreDBMigrations(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 迁移13: 为 notify_subscription 表添加 recipients 字段（订阅级收件人）
+		{
+			ID: "202601300001_add_notify_subscription_recipients",
+			Migrate: func(tx *gorm.DB) error {
+				zlog.Info("迁移 202601300001: 为 notify_subscription 表添加 recipients 字段")
+
+				// 检查字段是否已存在
+				if tx.Migrator().HasColumn(&model.NotifySubscription{}, "recipients") {
+					zlog.Info("recipients 字段已存在，跳过添加")
+					return nil
+				}
+
+				// 添加字段，默认值为空字符串（表示使用渠道默认收件人）
+				if err := tx.Migrator().AddColumn(&model.NotifySubscription{}, "recipients"); err != nil {
+					return fmt.Errorf("添加 recipients 字段失败: %w", err)
+				}
+
+				zlog.Info("recipients 字段添加成功（空值时将使用渠道配置的默认收件人，保持向后兼容）")
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				zlog.Info("回滚 202601300001: 删除 notify_subscription 表的 recipients 字段")
+				if tx.Migrator().HasColumn(&model.NotifySubscription{}, "recipients") {
+					return tx.Migrator().DropColumn(&model.NotifySubscription{}, "recipients")
+				}
+				return nil
+			},
+		},
 	})
 
 	// 执行迁移

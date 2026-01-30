@@ -108,6 +108,34 @@ func RunLogDBMigrations(db *gorm.DB) error {
 				)
 			},
 		},
+		// 迁移4: 为 notify_log 表添加 recipients 字段（记录邮件收件人）
+		{
+			ID: "202601300002_add_notify_log_recipients",
+			Migrate: func(tx *gorm.DB) error {
+				zlog.Info("迁移 202601300002: 为 notify_log 表添加 recipients 字段")
+
+				// 检查字段是否已存在
+				if tx.Migrator().HasColumn(&model.NotifyLog{}, "recipients") {
+					zlog.Info("recipients 字段已存在，跳过添加")
+					return nil
+				}
+
+				// 添加字段
+				if err := tx.Migrator().AddColumn(&model.NotifyLog{}, "recipients"); err != nil {
+					return fmt.Errorf("添加 recipients 字段失败: %w", err)
+				}
+
+				zlog.Info("recipients 字段添加成功（用于记录邮件通知的实际收件人）")
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				zlog.Info("回滚 202601300002: 删除 notify_log 表的 recipients 字段")
+				if tx.Migrator().HasColumn(&model.NotifyLog{}, "recipients") {
+					return tx.Migrator().DropColumn(&model.NotifyLog{}, "recipients")
+				}
+				return nil
+			},
+		},
 	})
 
 	// 执行迁移

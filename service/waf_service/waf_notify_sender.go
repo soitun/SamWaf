@@ -10,6 +10,7 @@ import (
 	"SamWaf/wafnotify/feishu"
 	"SamWaf/wafnotify/serverchan"
 	"fmt"
+	"strings"
 )
 
 type WafNotifySenderService struct{}
@@ -35,8 +36,8 @@ func (receiver *WafNotifySenderService) SendNotification(messageType, title, con
 			continue
 		}
 
-		// 发送通知
-		go receiver.sendToChannel(channel, messageType, title, content)
+		// 发送通知（传入subscription以支持订阅级收件人）
+		go receiver.sendToChannel(channel, subscription, messageType, title, content)
 	}
 }
 
@@ -46,10 +47,11 @@ func (receiver *WafNotifySenderService) getChannelById(channelId string, channel
 }
 
 // sendToChannel 发送到具体渠道
-func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChannel, messageType, title, content string) {
+func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChannel, subscription model.NotifySubscription, messageType, title, content string) {
 	var err error
 	status := 1
 	errorMsg := ""
+	recipients := "" // 用于记录实际使用的收件人
 
 	switch channel.Type {
 	case "dingtalk":
@@ -63,6 +65,26 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 		if notifierErr != nil {
 			err = notifierErr
 		} else {
+			// 关键：支持订阅级别的收件人配置（向后兼容）
+			if subscription.Recipients != "" {
+				// 优先使用订阅中配置的收件人
+				recipientList := strings.Split(subscription.Recipients, ",")
+				var trimmedRecipients []string
+				for _, r := range recipientList {
+					trimmed := strings.TrimSpace(r)
+					if trimmed != "" {
+						trimmedRecipients = append(trimmedRecipients, trimmed)
+					}
+				}
+				if len(trimmedRecipients) > 0 {
+					notifier.SetRecipients(trimmedRecipients)
+					recipients = strings.Join(trimmedRecipients, ", ") // 记录实际收件人
+				}
+			} else {
+				// 使用渠道默认收件人（从notifier获取）
+				recipients = strings.Join(notifier.ToEmails, ", ")
+			}
+			// 如果订阅中没有配置收件人，则使用渠道配置中的收件人（向后兼容）
 			err = notifier.SendMarkdown(title, content)
 		}
 	case "serverchan":
@@ -90,6 +112,7 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 		messageType,
 		title,
 		content,
+		recipients, // 传递收件人信息
 		status,
 		errorMsg,
 	)

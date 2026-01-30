@@ -26,6 +26,7 @@ func (receiver *WafNotifySubscriptionService) AddApi(req request.WafNotifySubscr
 		},
 		ChannelId:   req.ChannelId,
 		MessageType: req.MessageType,
+		Recipients:  req.Recipients,
 		Status:      req.Status,
 		FilterJSON:  req.FilterJSON,
 		Remarks:     req.Remarks,
@@ -43,6 +44,7 @@ func (receiver *WafNotifySubscriptionService) ModifyApi(req request.WafNotifySub
 	editMap := map[string]interface{}{
 		"ChannelId":   req.ChannelId,
 		"MessageType": req.MessageType,
+		"Recipients":  req.Recipients,
 		"Status":      req.Status,
 		"FilterJSON":  req.FilterJSON,
 		"Remarks":     req.Remarks,
@@ -90,7 +92,7 @@ func (receiver *WafNotifySubscriptionService) GetListApi(req request.WafNotifySu
 		whereValues = append(whereValues, req.Status)
 	}
 
-	global.GWAF_LOCAL_DB.Model(&model.NotifySubscription{}).Where(whereField, whereValues...).Limit(req.PageSize).Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
+	global.GWAF_LOCAL_DB.Model(&model.NotifySubscription{}).Where(whereField, whereValues...).Limit(req.PageSize).Order("create_time desc").Offset(req.PageSize * (req.PageIndex - 1)).Find(&list)
 	global.GWAF_LOCAL_DB.Model(&model.NotifySubscription{}).Where(whereField, whereValues...).Count(&total)
 
 	return list, total, nil

@@ -15,7 +15,7 @@ type WafNotifyLogService struct{}
 var WafNotifyLogServiceApp = new(WafNotifyLogService)
 
 // AddLog 添加通知日志
-func (receiver *WafNotifyLogService) AddLog(channelId, channelName, channelType, messageType, messageTitle, messageContent string, status int, errorMsg string) error {
+func (receiver *WafNotifyLogService) AddLog(channelId, channelName, channelType, messageType, messageTitle, messageContent string, recipients string, status int, errorMsg string) error {
 	var bean = &model.NotifyLog{
 		BaseOrm: baseorm.BaseOrm{
 			Id:          uuid.GenUUID(),
@@ -30,6 +30,7 @@ func (receiver *WafNotifyLogService) AddLog(channelId, channelName, channelType,
 		MessageType:    messageType,
 		MessageTitle:   messageTitle,
 		MessageContent: messageContent,
+		Recipients:     recipients,
 		Status:         status,
 		ErrorMsg:       errorMsg,
 		SendTime:       time.Now().Format("2006-01-02 15:04:05"),
