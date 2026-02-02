@@ -825,10 +825,10 @@ func (waf *WafEngine) getClientIP(r *http.Request, headers ...string) (error, st
 			if utils.IsValidIPv4(trimmedIP) {
 				return nil, trimmedIP, "0"
 			}
-			if utils.IsValidIPv6(ip) {
-				return nil, ip, "0"
+			if utils.IsValidIPv6(trimmedIP) {
+				return nil, trimmedIP, "0"
 			}
-			return errors.New("invalid IPv4 address from header: " + header + " value:" + ip), "", ""
+			return errors.New("invalid IP address from header: " + header + " value:" + ip), "", ""
 		}
 	}
 
