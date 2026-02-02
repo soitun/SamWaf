@@ -9,6 +9,7 @@ import (
 	"SamWaf/wafnotify/email"
 	"SamWaf/wafnotify/feishu"
 	"SamWaf/wafnotify/serverchan"
+	"SamWaf/wafnotify/wechatwork"
 	"fmt"
 	"strings"
 )
@@ -59,6 +60,9 @@ func (receiver *WafNotifySenderService) sendToChannel(channel model.NotifyChanne
 		err = notifier.SendMarkdown(title, content)
 	case "feishu":
 		notifier := feishu.NewFeishuNotifier(channel.WebhookURL, channel.Secret)
+		err = notifier.SendMarkdown(title, content)
+	case "wechatwork":
+		notifier := wechatwork.NewWechatWorkNotifier(channel.WebhookURL)
 		err = notifier.SendMarkdown(title, content)
 	case "email":
 		notifier, notifierErr := email.NewEmailNotifier(channel.ConfigJSON)
