@@ -5,11 +5,13 @@ import (
 	"SamWaf/common/zlog"
 	"SamWaf/enums"
 	"SamWaf/global"
+	"SamWaf/innerbean"
 	"SamWaf/model"
 	"SamWaf/model/common/response"
 	"SamWaf/model/request"
 	"SamWaf/model/spec"
 	"SamWaf/utils"
+	"SamWaf/wafenginecore/wafhttpcore"
 	"errors"
 	"fmt"
 	"strings"
@@ -342,4 +344,104 @@ func (w *WafRuleAPi) ModifyRuleStatusApi(c *gin.Context) {
 	} else {
 		response.FailWithMessage("解析失败", c)
 	}
+}
+
+// TestRuleApi 测试规则是否匹配模拟请求
+// 处理逻辑与 wafengine.go ServeHTTP 中的 WebLog 构建保持一致
+func (w *WafRuleAPi) TestRuleApi(c *gin.Context) {
+	var req request.WafRuleTestReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.FailWithMessage("参数解析失败", c)
+		return
+	}
+
+	// 1. 生成规则内容（与 AddApi/ModifyRuleApi 逻辑一致）
+	var ruleContent string
+	if req.IsManualRule == 1 {
+		ruleContent = req.RuleContent
+	} else {
+		var ruleTool = model.RuleTool{}
+		ruleInfo, err := ruleTool.LoadRule(req.RuleJson)
+		if err != nil {
+			response.FailWithMessage("规则解析错误", c)
+			return
+		}
+		chsName := ruleInfo.RuleBase.RuleName
+		ruleInfo.RuleBase.RuleName = strings.Replace(req.RuleCode, "-", "", -1)
+		ruleContent = ruleTool.GenRuleInfo(ruleInfo, chsName)
+	}
+
+	// 2. 初始化规则引擎并加载规则
+	ruleHelper := &utils.RuleHelper{}
+	ruleHelper.InitRuleEngine()
+	err := ruleHelper.LoadRuleString(ruleContent)
+	if err != nil {
+		response.FailWithMessage("规则加载失败: "+err.Error(), c)
+		return
+	}
+
+	// 3. 通过IP解析地理位置（与 wafengine.go 第353行一致）
+	region := utils.GetCountry(req.TestSrcIP)
+	// region 返回格式: [国家, ISP, 省份, 城市, ...]
+	country := ""
+	province := ""
+	city := ""
+	if len(region) > 0 {
+		country = region[0]
+	}
+	if len(region) > 2 {
+		province = region[2]
+	}
+	if len(region) > 3 {
+		city = region[3]
+	}
+
+	// 4. URL解码处理（与 wafengine.go 第358行一致）
+	decodedRawQuery := ""
+	decodedURL := req.TestURL
+	if strings.Contains(req.TestURL, "?") {
+		parts := strings.SplitN(req.TestURL, "?", 2)
+		if len(parts) == 2 {
+			decodedRawQuery = wafhttpcore.WafHttpCoreUrlEncode(parts[1], 10)
+			decodedURL = parts[0] + "?" + decodedRawQuery
+		}
+	}
+
+	// 5. 构建 WebLog（字段与 wafengine.go 第360-395行保持一致）
+	weblog := &innerbean.WebLog{
+		SRC_IP:     req.TestSrcIP,
+		HOST:       req.TestHost,
+		URL:        decodedURL,
+		RawQuery:   decodedRawQuery,
+		METHOD:     req.TestMethod,
+		USER_AGENT: req.TestUserAgent,
+		REFERER:    req.TestReferer,
+		HEADER:     req.TestHeader,
+		COOKIES:    req.TestCookies,
+		BODY:       req.TestBody,
+		COUNTRY:    country,
+		PROVINCE:   province,
+		CITY:       city,
+	}
+
+	// 6. 执行规则匹配
+	ruleMatches, err := ruleHelper.Match("MF", weblog)
+	if err != nil {
+		response.FailWithMessage("规则匹配失败: "+err.Error(), c)
+		return
+	}
+
+	// 7. 构建响应
+	var matchedRules []string
+	for _, r := range ruleMatches {
+		matchedRules = append(matchedRules, r.RuleDescription)
+	}
+
+	response.OkWithDetailed(gin.H{
+		"is_match":        len(ruleMatches) > 0,
+		"matched_rules":   matchedRules,
+		"parsed_country":  country,
+		"parsed_province": province,
+		"parsed_city":     city,
+	}, "测试完成", c)
 }
