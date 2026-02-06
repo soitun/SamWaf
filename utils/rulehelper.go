@@ -6,11 +6,12 @@ import (
 	"SamWaf/model"
 	"errors"
 	"fmt"
+	"regexp"
+
 	"github.com/hyperjumptech/grule-rule-engine/ast"
 	"github.com/hyperjumptech/grule-rule-engine/builder"
 	"github.com/hyperjumptech/grule-rule-engine/engine"
 	"github.com/hyperjumptech/grule-rule-engine/pkg"
-	"regexp"
 )
 
 // 规则帮助类
@@ -80,6 +81,7 @@ func (rulehelper *RuleHelper) LoadRules(ruleconfig []model.Rules) (string, error
 func (rulehelper *RuleHelper) Exec(key string, ruleinfo *innerbean.WAF_REQUEST_FULL) error {
 	dataCtx := ast.NewDataContext()
 	dataCtx.Add(key, ruleinfo)
+	dataCtx.Add("RF", innerbean.NewRuleFunc()) // 注册规则函数助手
 	err := rulehelper.engine.Execute(dataCtx, rulehelper.KnowledgeBase)
 	if err != nil {
 		zlog.Error("Exec", err)
@@ -97,6 +99,7 @@ func (rulehelper *RuleHelper) Match(key string, ruleinfo *innerbean.WebLog) ([]*
 	}()
 	dataCtx := ast.NewDataContext()
 	dataCtx.Add(key, ruleinfo)
+	dataCtx.Add("RF", innerbean.NewRuleFunc()) // 注册规则函数助手
 	if rulehelper.KnowledgeBase == nil {
 		return nil, errors.New("没有规则数据")
 	}
@@ -108,6 +111,10 @@ func (rulehelper *RuleHelper) CheckRuleAvailable(ruleText string) error {
 	}
 	dataCtx := ast.NewDataContext()
 	err := dataCtx.Add("MF", myFact)
+	if err != nil {
+		return err
+	}
+	err = dataCtx.Add("RF", innerbean.NewRuleFunc()) // 注册规则函数助手
 	if err != nil {
 		return err
 	}
