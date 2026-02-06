@@ -73,9 +73,10 @@ type WafEngine struct {
 }
 
 func (waf *WafEngine) Error() string {
-	fs := "HTTP: %d, HostCode: %d, Message: %s"
-	zlog.Error(fmt.Sprintf(fs))
-	return fmt.Sprintf(fs)
+	// 返回错误信息的固定格式
+	const errFormat = "WafEngine error occurred"
+	zlog.Error(errFormat)
+	return errFormat
 }
 
 // inferAttackType 根据检测规则标题推断攻击类型
@@ -440,26 +441,23 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if host == hostTarget.Host.Host+":80" && !strings.HasPrefix(weblogbean.URL, global.GSSL_HTTP_CHANGLE_PATH) && hostTarget.Host.AutoJumpHTTPS == 1 && hostTarget.Host.Ssl == 1 {
-			domainJump := ""
-			if strings.Contains(host, ":") {
-				partsJump := strings.Split(host, ":")
-				if len(partsJump) == 2 {
-					domainJump = partsJump[0]
+		if r.TLS == nil {
+			// 检查是否需要自动跳转到HTTPS
+			shouldJump, domainJump := shouldAutoJumpHTTPS(host, hostTarget.Host.Host, weblogbean.URL, hostTarget.Host.AutoJumpHTTPS, hostTarget.Host.Ssl)
+			if shouldJump {
+				// 重定向到 HTTPS 版本的 URL
+				targetHttpsUrl := fmt.Sprintf("%s%s%s", "https://", domainJump, r.URL.Path)
+				// 只有在非标准端口时才显示端口号（443是标准端口）
+				if hostTarget.Host.Port != 443 {
+					targetHttpsUrl = fmt.Sprintf("%s%s:%d%s", "https://", domainJump, hostTarget.Host.Port, r.URL.Path)
 				}
+				if r.URL.RawQuery != "" {
+					targetHttpsUrl += "?" + r.URL.RawQuery
+				}
+				zlog.Info(innerLogName, "jump https", targetHttpsUrl)
+				http.Redirect(w, r, targetHttpsUrl, int(global.GCONFIG_RECORD_REDIRECT_HTTPS_CODE))
+				return
 			}
-			// 重定向到 HTTPS 版本的 URL
-			targetHttpsUrl := fmt.Sprintf("%s%s%s", "https://", domainJump, r.URL.Path)
-			// 只有在非标准端口时才显示端口号（443是标准端口）
-			if hostTarget.Host.Port != 443 {
-				targetHttpsUrl = fmt.Sprintf("%s%s:%d%s", "https://", domainJump, hostTarget.Host.Port, r.URL.Path)
-			}
-			if r.URL.RawQuery != "" {
-				targetHttpsUrl += "?" + r.URL.RawQuery
-			}
-			zlog.Info(innerLogName, "jump https", targetHttpsUrl)
-			http.Redirect(w, r, targetHttpsUrl, int(global.GCONFIG_RECORD_REDIRECT_HTTPS_CODE))
-			return
 		}
 
 		r.Header.Add("waf_req_uuid", weblogbean.REQ_UUID)
@@ -1816,4 +1814,119 @@ func (waf *WafEngine) checkWithPlugins(r *http.Request, weblogbean *innerbean.We
 
 	// 插件检查通过，不拦截
 	return detection.Result{IsBlock: false}
+}
+
+// shouldAutoJumpHTTPS 判断是否应该自动跳转到HTTPS
+// 参数:
+//   - requestHost: 请求的host(如: aaa.samwaf.com:80 或 bbb.aaa.samwaf.com:8080)
+//   - configHost: 配置的host(如: *.samwaf.com 或 example.com)
+//   - requestURL: 请求的URL路径
+//   - autoJumpHTTPS: 是否开启自动跳转HTTPS
+//   - ssl: 是否启用了SSL
+//
+// 返回:
+//   - bool: 是否应该跳转
+//   - string: 跳转的域名部分(不含端口)
+//
+// 支持场景:
+//   - 精确匹配: example.com:80 匹配 example.com
+//   - 二级泛域名: aaa.samwaf.com:80 匹配 *.samwaf.com
+//   - 多级泛域名: bbb.aaa.samwaf.com:8080 匹配 *.samwaf.com (利用MaskSubdomain)
+func shouldAutoJumpHTTPS(requestHost, configHost, requestURL string, autoJumpHTTPS, ssl int) (bool, string) {
+	// 检查基本条件：必须开启自动跳转和SSL
+	if autoJumpHTTPS != 1 || ssl != 1 {
+		return false, ""
+	}
+
+	// 排除SSL证书验证路径
+	if strings.HasPrefix(requestURL, global.GSSL_HTTP_CHANGLE_PATH) {
+		return false, ""
+	}
+
+	// 从请求host中提取域名和端口
+	requestDomain := ""
+	requestPort := ""
+	if strings.Contains(requestHost, ":") {
+		parts := strings.Split(requestHost, ":")
+		if len(parts) == 2 {
+			requestDomain = parts[0]
+			requestPort = parts[1]
+		}
+	} else {
+		requestDomain = requestHost
+	}
+
+	// 判断是否是HTTP端口（80或其他非443端口）
+	// 如果没有端口号或者端口是443，不需要跳转
+	if requestPort == "" || requestPort == "443" {
+		return false, ""
+	}
+
+	// 检查域名是否匹配
+	matched := false
+
+	// 情况1: 精确匹配（如: example.com 匹配 example.com）
+	if requestDomain == configHost {
+		matched = true
+	}
+
+	// 情况2: 配置host带端口的精确匹配（如: example.com:80 匹配 example.com:80）
+	if !matched && strings.Contains(configHost, ":") {
+		if requestHost == configHost {
+			matched = true
+		}
+	}
+
+	// 情况3: 泛域名匹配（支持多级域名）
+	// 例如: aaa.samwaf.com:80 匹配 *.samwaf.com
+	//      bbb.aaa.samwaf.com:80 匹配 *.samwaf.com
+	//      ccc.bbb.aaa.samwaf.com:8080 匹配 *.samwaf.com
+	if !matched && strings.HasPrefix(configHost, "*.") {
+		// 方法1: 直接匹配（二级域名）
+		// 提取主域名部分（去掉*.）
+		baseDomain := configHost[2:] // 去掉 "*."
+		// 检查请求域名是否以主域名结尾
+		if strings.HasSuffix(requestDomain, baseDomain) {
+			// 确保是完整的子域名匹配，而不是部分匹配
+			// 例如: aaa.samwaf.com 匹配 *.samwaf.com
+			// 但 aaasamwaf.com 不匹配 *.samwaf.com
+			if requestDomain != baseDomain && strings.HasSuffix(requestDomain, "."+baseDomain) {
+				matched = true
+			}
+		}
+
+		// 方法2: 使用MaskSubdomain处理多级域名
+		// 例如: bbb.aaa.samwaf.com:80 -> *.aaa.samwaf.com:80
+		// 然后递归检查 *.aaa.samwaf.com 是否匹配 *.samwaf.com
+		if !matched {
+			maskedHost := domaintool.MaskSubdomain(requestHost)
+			// maskedHost 示例: *.aaa.samwaf.com:80
+			// 如果 maskedHost 和 requestHost 不同，说明有多级域名
+			if maskedHost != requestHost {
+				// 提取 maskedHost 的域名部分（去掉端口）
+				maskedDomain := maskedHost
+				if strings.Contains(maskedHost, ":") {
+					maskedDomain = strings.Split(maskedHost, ":")[0]
+				}
+
+				// 递归检查: *.aaa.samwaf.com 是否匹配 *.samwaf.com
+				// 即检查 aaa.samwaf.com 是否匹配 *.samwaf.com 的baseDomain
+				if strings.HasPrefix(maskedDomain, "*.") {
+					checkDomain := maskedDomain[2:] // 去掉 "*."，得到 aaa.samwaf.com
+					// 检查 aaa.samwaf.com 是否匹配 *.samwaf.com
+					if strings.HasSuffix(checkDomain, baseDomain) {
+						if checkDomain != baseDomain && strings.HasSuffix(checkDomain, "."+baseDomain) {
+							matched = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if matched {
+		return true, requestDomain
+	}
+
+	return false, ""
 }

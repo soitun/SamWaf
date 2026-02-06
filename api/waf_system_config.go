@@ -94,6 +94,30 @@ func (w *WafSystemConfigApi) ModifyApi(c *gin.Context) {
 		response.FailWithMessage("解析失败", c)
 	}
 }
+
+// ModifyByItemApi 通过 item 修改系统配置的 value
+func (w *WafSystemConfigApi) ModifyByItemApi(c *gin.Context) {
+	var req request.WafSystemConfigEditByItemReq
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		response.FailWithMessage("解析失败", c)
+		return
+	}
+
+	if req.Item == "" {
+		response.FailWithMessage("item 不能为空", c)
+		return
+	}
+
+	err = wafSystemConfigService.ModifyByItemApi(req)
+	if err != nil {
+		response.FailWithMessage("编辑发生错误: "+err.Error(), c)
+	} else {
+		waftask.TaskLoadSetting(true)
+		response.OkWithMessage("编辑成功", c)
+	}
+}
+
 func (w *WafSystemConfigApi) GetDetailByItemApi(c *gin.Context) {
 	var req request.WafSystemConfigDetailByItemReq
 	err := c.ShouldBind(&req)

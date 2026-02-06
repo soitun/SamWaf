@@ -17,4 +17,5 @@ func (receiver *SystemConfigRouter) InitSystemConfigRouter(group *gin.RouterGrou
 	router.POST("/api/v1/systemconfig/add", api.AddApi)
 	router.GET("/api/v1/systemconfig/del", api.DelApi)
 	router.POST("/api/v1/systemconfig/edit", api.ModifyApi)
+	router.POST("/api/v1/systemconfig/editByItem", api.ModifyByItemApi)
 }
