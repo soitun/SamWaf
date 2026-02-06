@@ -33,3 +33,7 @@ type WafSystemConfigSearchReq struct {
 type WafSystemConfigDetailByItemReq struct {
 	Item string `json:"item" form:"item"` //item
 }
+type WafSystemConfigEditByItemReq struct {
+	Item  string `json:"item" form:"item"`   //item
+	Value string `json:"value" form:"value"` //value
+}

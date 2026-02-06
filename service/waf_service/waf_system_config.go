@@ -58,6 +58,25 @@ func (receiver *WafSystemConfigService) ModifyApi(req request.WafSystemConfigEdi
 
 	return err
 }
+
+// ModifyByItemApi 通过 item 修改系统配置的 value
+func (receiver *WafSystemConfigService) ModifyByItemApi(req request.WafSystemConfigEditByItemReq) error {
+	var sysConfig model.SystemConfig
+	err := global.GWAF_LOCAL_DB.Where("item = ?", req.Item).First(&sysConfig).Error
+	if err != nil {
+		return errors.New("配置项不存在")
+	}
+
+	editMap := map[string]interface{}{
+		"Value":       req.Value,
+		"UPDATE_TIME": customtype.JsonTime(time.Now()),
+	}
+
+	err = global.GWAF_LOCAL_DB.Model(model.SystemConfig{}).Where("item = ?", req.Item).Updates(editMap).Error
+
+	return err
+}
+
 func (receiver *WafSystemConfigService) GetDetailApi(req request.WafSystemConfigDetailReq) model.SystemConfig {
 	var bean model.SystemConfig
 	global.GWAF_LOCAL_DB.Where("id=?", req.Id).Find(&bean)
