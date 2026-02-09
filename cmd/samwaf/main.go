@@ -279,6 +279,18 @@ func (m *wafSystenService) run() {
 	waftask.TaskLoadSetting(true)
 	//启动通知相关程序
 	global.GNOTIFY_KAKFA_SERVICE = wafnotify.InitNotifyKafkaEngine(global.GCONFIG_RECORD_KAFKA_ENABLE, global.GCONFIG_RECORD_KAFKA_URL, global.GCONFIG_RECORD_KAFKA_TOPIC) //kafka
+	// 日志文件写入
+	compressFlag := global.GCONFIG_LOG_FILE_WRITE_COMPRESS == 1
+	global.GNOTIFY_LOG_FILE_WRITER = wafnotify.InitLogFileWriterEngine(
+		global.GCONFIG_LOG_FILE_WRITE_ENABLE,
+		global.GCONFIG_LOG_FILE_WRITE_PATH,
+		global.GCONFIG_LOG_FILE_WRITE_FORMAT,
+		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
+		global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
+		int(global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
+		int(global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
+		compressFlag,
+	)
 	//启动waf
 	globalobj.GWAF_RUNTIME_OBJ_WAF_ENGINE = &wafenginecore.WafEngine{
 		HostTarget: map[string]*wafenginmodel.HostSafe{},

@@ -50,6 +50,7 @@ type ApiGroup struct {
 	NotifyLogRouter
 	FirewallIPBlockRouter
 	PluginRouter
+	LogFileWriteRouter
 }
 type PublicApiGroup struct {
 	LoginRouter

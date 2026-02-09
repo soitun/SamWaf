@@ -26,6 +26,14 @@ func (ls *WafNotifyService) ChangeEnable(enable int64) {
 	ls.enable = enable
 }
 
+// GetNotifier 获取底层通知器
+func (ls *WafNotifyService) GetNotifier() wafinterface.WafNotify {
+	if ls == nil {
+		return nil
+	}
+	return ls.notifier
+}
+
 // 处理并发送单条日志
 func (ls *WafNotifyService) ProcessSingleLog(log *innerbean.WebLog) error {
 	if ls.enable == 0 {
