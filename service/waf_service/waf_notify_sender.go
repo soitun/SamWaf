@@ -12,6 +12,7 @@ import (
 	"SamWaf/wafnotify/wechatwork"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 type WafNotifySenderService struct{}
@@ -27,6 +28,10 @@ func (receiver *WafNotifySenderService) SendNotification(messageType, title, con
 		return
 	}
 
+	// 使用 WaitGroup 和信号量控制并发，防止goroutine爆炸
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 3) // 限制最多3个渠道并发发送
+
 	// 遍历订阅，发送通知
 	for _, subscription := range subscriptions {
 		// 获取渠道信息
@@ -38,8 +43,16 @@ func (receiver *WafNotifySenderService) SendNotification(messageType, title, con
 		}
 
 		// 发送通知（传入subscription以支持订阅级收件人）
-		go receiver.sendToChannel(channel, subscription, messageType, title, content)
+		wg.Add(1)
+		sem <- struct{}{} // 获取信号量，超过3个会阻塞等待
+		go func(ch model.NotifyChannel, sub model.NotifySubscription) {
+			defer wg.Done()
+			defer func() { <-sem }() // 释放信号量
+			receiver.sendToChannel(ch, sub, messageType, title, content)
+		}(channel, subscription)
 	}
+
+	wg.Wait() // 等待所有渠道发送完成
 }
 
 // getChannelById 根据ID获取渠道

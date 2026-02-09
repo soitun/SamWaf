@@ -7,14 +7,18 @@ import (
 	"SamWaf/model"
 	"SamWaf/model/baseorm"
 	"SamWaf/model/request"
+	"sync"
 	"time"
 )
+
+// notifyLogWriteMutex 用于串行化通知日志写入，防止大量goroutine并发写入SQLite导致崩溃
+var notifyLogWriteMutex sync.Mutex
 
 type WafNotifyLogService struct{}
 
 var WafNotifyLogServiceApp = new(WafNotifyLogService)
 
-// AddLog 添加通知日志
+// AddLog 添加通知日志（使用互斥锁串行化写入，防止并发写SQLite崩溃）
 func (receiver *WafNotifyLogService) AddLog(channelId, channelName, channelType, messageType, messageTitle, messageContent string, recipients string, status int, errorMsg string) error {
 	var bean = &model.NotifyLog{
 		BaseOrm: baseorm.BaseOrm{
@@ -35,6 +39,9 @@ func (receiver *WafNotifyLogService) AddLog(channelId, channelName, channelType,
 		ErrorMsg:       errorMsg,
 		SendTime:       time.Now().Format("2006-01-02 15:04:05"),
 	}
+
+	notifyLogWriteMutex.Lock()
+	defer notifyLogWriteMutex.Unlock()
 	return global.GWAF_LOCAL_LOG_DB.Create(bean).Error
 }
 
