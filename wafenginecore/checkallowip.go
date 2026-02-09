@@ -3,6 +3,7 @@ package wafenginecore
 import (
 	"SamWaf/global"
 	"SamWaf/innerbean"
+	"SamWaf/model"
 	"SamWaf/model/detection"
 	"SamWaf/model/wafenginmodel"
 	"SamWaf/utils"
@@ -21,10 +22,8 @@ func (waf *WafEngine) CheckAllowIP(r *http.Request, weblogbean *innerbean.WebLog
 		Title:           "",
 		Content:         "",
 	}
-	clientIp := weblogbean.SRC_IP
-	if global.GCONFIG_RECORD_PROXY_HEADER == "" {
-		clientIp = weblogbean.NetSrcIp
-	}
+	// 根据当前 host 的 IP 模式选择使用的 IP
+	clientIp := model.GetClientIPByMode(hostTarget.Host.IPMode, weblogbean.NetSrcIp, weblogbean.SRC_IP)
 
 	//ip白名单策略（局部）
 	if hostTarget.IPWhiteLists != nil {
@@ -37,8 +36,10 @@ func (waf *WafEngine) CheckAllowIP(r *http.Request, weblogbean *innerbean.WebLog
 	}
 	//ip白名单策略（全局）
 	if waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].Host.GUARD_STATUS == 1 && waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].IPWhiteLists != nil {
+		// 全局白名单使用全局 host 的 IP 模式
+		globalClientIp := model.GetClientIPByMode(waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].Host.IPMode, weblogbean.NetSrcIp, weblogbean.SRC_IP)
 		for i := 0; i < len(waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].IPWhiteLists); i++ {
-			if utils.CheckIPInCIDR(clientIp, waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].IPWhiteLists[i].Ip) {
+			if utils.CheckIPInCIDR(globalClientIp, waf.HostTarget[global.GWAF_GLOBAL_HOST_NAME].IPWhiteLists[i].Ip) {
 				result.JumpGuardResult = true
 				break
 			}

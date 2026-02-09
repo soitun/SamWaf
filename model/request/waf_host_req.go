@@ -40,6 +40,7 @@ type WafHostAddReq struct {
 	LogOnlyMode          int    `json:"log_only_mode"`            //是否只记录日志 1 是 0 不是
 	TransportJSON        string `json:"transport_json"`           //Transport配置 json
 	CustomHeadersJSON    string `json:"custom_headers_json"`      //自定义头信息配置 json
+	IPMode               string `json:"ip_mode"`                  //IP提取模式: "nic" 网卡模式 或 "proxy" 代理模式
 }
 
 type WafHostDelReq struct {
@@ -88,6 +89,7 @@ type WafHostEditReq struct {
 	LogOnlyMode          int    `json:"log_only_mode"`            //是否只记录日志 1 是 0 不是
 	TransportJSON        string `json:"transport_json"`           //Transport配置 json
 	CustomHeadersJSON    string `json:"custom_headers_json"`      //自定义头信息配置 json
+	IPMode               string `json:"ip_mode"`                  //IP提取模式: "nic" 网卡模式 或 "proxy" 代理模式
 }
 type WafHostGuardStatusReq struct {
 	CODE         string `json:"code"`

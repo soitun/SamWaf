@@ -11,12 +11,9 @@ import (
 )
 
 // checkCaptchaToken 返回false 要验证信息 ，true 不验证信息
-func (waf *WafEngine) checkCaptchaToken(r *http.Request, webLog innerbean.WebLog, captchaConfig model.CaptchaConfig) bool {
-	// 根据IP模式选择使用的IP
-	clientIP := webLog.NetSrcIp
-	if captchaConfig.IPMode == "proxy" {
-		clientIP = webLog.SRC_IP
-	}
+func (waf *WafEngine) checkCaptchaToken(r *http.Request, webLog innerbean.WebLog, captchaConfig model.CaptchaConfig, ipMode string) bool {
+	// 根据IP模式选择使用的IP（从 Host 级别传入）
+	clientIP := model.GetClientIPByMode(ipMode, webLog.NetSrcIp, webLog.SRC_IP)
 
 	// 首先从Cookie中获取验证标识
 	cookie, err := r.Cookie("samwaf_captcha_token")
@@ -57,8 +54,8 @@ func (waf *WafEngine) checkCaptchaToken(r *http.Request, webLog innerbean.WebLog
 }
 
 // 处理验证码
-func (waf *WafEngine) handleCaptchaRequest(w http.ResponseWriter, r *http.Request, log *innerbean.WebLog, captchaConfig model.CaptchaConfig, pathPrefix string) {
+func (waf *WafEngine) handleCaptchaRequest(w http.ResponseWriter, r *http.Request, log *innerbean.WebLog, captchaConfig model.CaptchaConfig, pathPrefix string, ipMode string) {
 	// 使用验证码服务处理请求
 	captchaService := wafcaptcha.GetService()
-	captchaService.HandleCaptchaRequest(w, r, log, captchaConfig, pathPrefix)
+	captchaService.HandleCaptchaRequest(w, r, log, captchaConfig, pathPrefix, ipMode)
 }

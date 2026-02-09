@@ -9,7 +9,6 @@ type WafAntiCCAddReq struct {
 	Limit         int    `json:"limit" form:"limit"`                     //限制
 	LockIPMinutes int    `json:"lock_ip_minutes" form:"lock_ip_minutes"` //封禁分钟
 	LimitMode     string `json:"limit_mode"  form:"limit_mode"`          // "rate" 或 "window"
-	IPMode        string `json:"ip_mode"  form:"ip_mode"`                // "nic" 网卡模式 或 "proxy" 代理模式
 	IsEnableRule  bool   `json:"is_enable_rule" form:"is_enable_rule"`   //是否启动规则
 	RuleContent   string `json:"rule_content" form:"rule_content"`       //规则内容
 	Remarks       string `json:"remarks" form:"remarks"`                 //备注
@@ -32,7 +31,6 @@ type WafAntiCCEditReq struct {
 	Limit         int    `json:"limit" form:"limit"`                      //限制
 	LockIPMinutes int    `json:"lock_ip_minutes"  form:"lock_ip_minutes"` //封禁分钟
 	LimitMode     string `json:"limit_mode"  form:"limit_mode"`           // "rate" 或 "window"
-	IPMode        string `json:"ip_mode"  form:"ip_mode"`                 // "nic" 网卡模式 或 "proxy" 代理模式
 	IsEnableRule  bool   `json:"is_enable_rule" form:"is_enable_rule"`    //是否启动规则
 	RuleContent   string `json:"rule_content" form:"rule_content"`        //规则内容
 	Remarks       string `json:"remarks" form:"remarks"`                  //备注
