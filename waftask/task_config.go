@@ -6,8 +6,31 @@ import (
 	"SamWaf/model"
 	"SamWaf/model/request"
 	"SamWaf/wafipban"
+	"SamWaf/wafnotify/logfilewriter"
 	"strconv"
 )
+
+// syncLogFileWriterConfig 将最新的全局配置同步到 LogFileWriter 实例
+func syncLogFileWriterConfig() {
+	if global.GNOTIFY_LOG_FILE_WRITER == nil {
+		return
+	}
+	notifier := global.GNOTIFY_LOG_FILE_WRITER.GetNotifier()
+	if notifier == nil {
+		return
+	}
+	if writer, ok := notifier.(*logfilewriter.LogFileWriter); ok {
+		writer.UpdateConfig(
+			global.GCONFIG_LOG_FILE_WRITE_PATH,
+			global.GCONFIG_LOG_FILE_WRITE_FORMAT,
+			global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL,
+			global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE,
+			int(global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS),
+			int(global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS),
+			global.GCONFIG_LOG_FILE_WRITE_COMPRESS == 1,
+		)
+	}
+}
 
 func setConfigIntValue(name string, value int64, change int) {
 	// 更新全局配置值
@@ -137,12 +160,16 @@ func setConfigIntValue(name string, value int64, change int) {
 		global.GCONFIG_LOG_FILE_WRITE_ENABLE = value
 	case "log_file_write_max_size":
 		global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE = value
+		syncLogFileWriterConfig()
 	case "log_file_write_max_backups":
 		global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS = value
+		syncLogFileWriterConfig()
 	case "log_file_write_max_days":
 		global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS = value
+		syncLogFileWriterConfig()
 	case "log_file_write_compress":
 		global.GCONFIG_LOG_FILE_WRITE_COMPRESS = value
+		syncLogFileWriterConfig()
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}
@@ -209,10 +236,13 @@ func setConfigStringValue(name string, value string, change int) {
 		break
 	case "log_file_write_path":
 		global.GCONFIG_LOG_FILE_WRITE_PATH = value
+		syncLogFileWriterConfig()
 	case "log_file_write_format":
 		global.GCONFIG_LOG_FILE_WRITE_FORMAT = value
+		syncLogFileWriterConfig()
 	case "log_file_write_custom_tpl":
 		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL = value
+		syncLogFileWriterConfig()
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}

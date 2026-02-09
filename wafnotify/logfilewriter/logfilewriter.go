@@ -137,17 +137,23 @@ func (lw *LogFileWriter) NotifyBatch(logs []*innerbean.WebLog) error {
 			return fmt.Errorf("写入日志失败: %v", err)
 		}
 		lw.currentSize += int64(n)
+
+		// 每条写入后检查是否需要轮转，避免单批数据过大时文件超限过多
+		if lw.needsRotation() {
+			// 先刷新再轮转
+			if err := lw.writer.Flush(); err != nil {
+				zlog.Error("刷新日志缓冲区失败: " + err.Error())
+			}
+			if err := lw.rotate(); err != nil {
+				zlog.Error("日志文件轮转失败: " + err.Error())
+			}
+		}
 	}
 
 	// 刷新缓冲区
-	if err := lw.writer.Flush(); err != nil {
-		zlog.Error("刷新日志缓冲区失败: " + err.Error())
-	}
-
-	// 检查是否需要轮转
-	if lw.needsRotation() {
-		if err := lw.rotate(); err != nil {
-			zlog.Error("日志文件轮转失败: " + err.Error())
+	if lw.writer != nil {
+		if err := lw.writer.Flush(); err != nil {
+			zlog.Error("刷新日志缓冲区失败: " + err.Error())
 		}
 	}
 
