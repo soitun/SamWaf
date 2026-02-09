@@ -83,6 +83,8 @@ func ProcessLogDequeEngine() {
 					// 日志流做统计
 					waftask.CollectStatsFromLogs(webLogArray)
 					global.GNOTIFY_KAKFA_SERVICE.ProcessBatchLogs(webLogArray)
+					// 文件日志写入 (额外输出)
+					global.GNOTIFY_LOG_FILE_WRITER.ProcessBatchLogs(webLogArray)
 				}
 			}
 			time.Sleep(100 * time.Millisecond)

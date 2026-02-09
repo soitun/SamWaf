@@ -52,6 +52,7 @@ type APIGroup struct {
 	WafNotifyLogApi
 	WafFirewallIPBlockApi
 	WafPluginApi
+	WafLogFileWriteApi
 }
 
 var APIGroupAPP = new(APIGroup)

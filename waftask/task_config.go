@@ -130,6 +130,19 @@ func setConfigIntValue(name string, value int64, change int) {
 		global.GCONFIG_ENABLE_HTTP3 = value
 	case "record_log_desensitize":
 		global.GCONFIG_RECORD_LOG_DESENSITIZE = value
+	case "log_file_write_enable":
+		if global.GCONFIG_LOG_FILE_WRITE_ENABLE != value && global.GNOTIFY_LOG_FILE_WRITER != nil {
+			global.GNOTIFY_LOG_FILE_WRITER.ChangeEnable(value)
+		}
+		global.GCONFIG_LOG_FILE_WRITE_ENABLE = value
+	case "log_file_write_max_size":
+		global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE = value
+	case "log_file_write_max_backups":
+		global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS = value
+	case "log_file_write_max_days":
+		global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS = value
+	case "log_file_write_compress":
+		global.GCONFIG_LOG_FILE_WRITE_COMPRESS = value
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}
@@ -194,6 +207,12 @@ func setConfigStringValue(name string, value string, change int) {
 	case "zerossl_eab_hmac_key":
 		global.GCONFIG_ZEROSSL_EAB_HMAC_KEY = value
 		break
+	case "log_file_write_path":
+		global.GCONFIG_LOG_FILE_WRITE_PATH = value
+	case "log_file_write_format":
+		global.GCONFIG_LOG_FILE_WRITE_FORMAT = value
+	case "log_file_write_custom_tpl":
+		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL = value
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}
@@ -330,4 +349,14 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigStringItem(initLoad, "ssl", "zerossl_access_key", global.GCONFIG_ZEROSSL_ACCESS_KEY, "zerossl访问key", "string", "", configMap)
 	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_kid", global.GCONFIG_ZEROSSL_EAB_KID, "zerossl eab_kid", "string", "", configMap)
 	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_hmac_key", global.GCONFIG_ZEROSSL_EAB_HMAC_KEY, "zerossl eab_hmac_key", "string", "", configMap)
+
+	// 日志文件写入相关配置
+	updateConfigIntItem(initLoad, "logfile", "log_file_write_enable", global.GCONFIG_LOG_FILE_WRITE_ENABLE, "日志文件写入开关（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
+	updateConfigStringItem(initLoad, "logfile", "log_file_write_path", global.GCONFIG_LOG_FILE_WRITE_PATH, "日志文件输出路径", "string", "", configMap)
+	updateConfigStringItem(initLoad, "logfile", "log_file_write_format", global.GCONFIG_LOG_FILE_WRITE_FORMAT, "日志格式（nginx/apache/custom）", "options", "nginx|Nginx Combined,apache|Apache Combined,custom|自定义格式", configMap)
+	updateConfigStringItem(initLoad, "logfile", "log_file_write_custom_tpl", global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL, "自定义日志格式模板", "string", "", configMap)
+	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_size", global.GCONFIG_LOG_FILE_WRITE_MAX_SIZE, "单个日志文件最大大小（MB）", "int", "", configMap)
+	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_backups", global.GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS, "保留的历史文件数量", "int", "", configMap)
+	updateConfigIntItem(initLoad, "logfile", "log_file_write_max_days", global.GCONFIG_LOG_FILE_WRITE_MAX_DAYS, "保留天数", "int", "", configMap)
+	updateConfigIntItem(initLoad, "logfile", "log_file_write_compress", global.GCONFIG_LOG_FILE_WRITE_COMPRESS, "是否压缩历史文件（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)
 }

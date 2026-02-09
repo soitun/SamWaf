@@ -136,6 +136,7 @@ var (
 
 	/*******通知相关*************/
 	GNOTIFY_KAKFA_SERVICE           *wafnotify.WafNotifyService                                  //通知服务
+	GNOTIFY_LOG_FILE_WRITER         *wafnotify.WafNotifyService                                  //日志文件写入服务
 	GNOTIFY_SEND_MAX_LIMIT_MINTUTES                             = time.Duration(5) * time.Minute // 规则相关信息最大发送抑止 默认5分钟
 
 	/*******日志记录相关*************/

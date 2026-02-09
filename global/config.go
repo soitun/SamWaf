@@ -70,4 +70,14 @@ var (
 	GCONFIG_ZEROSSL_EAB_KID      string = "" // zerossl eab_kid
 	GCONFIG_ZEROSSL_EAB_HMAC_KEY string = "" // zerossl eab_hmac_key
 
+	// 日志文件写入配置 (额外输出，不影响SQLite存储)
+	GCONFIG_LOG_FILE_WRITE_ENABLE      int64  = 0                 // 日志文件写入开关 (0关闭 1开启)
+	GCONFIG_LOG_FILE_WRITE_PATH        string = "logs/access.log" // 日志文件路径
+	GCONFIG_LOG_FILE_WRITE_FORMAT      string = "nginx"           // 日志格式: nginx, apache, custom
+	GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL  string = ""                // 自定义格式模板
+	GCONFIG_LOG_FILE_WRITE_MAX_SIZE    int64  = 100               // 单个日志文件最大大小 (MB)
+	GCONFIG_LOG_FILE_WRITE_MAX_BACKUPS int64  = 10                // 保留的历史文件数量
+	GCONFIG_LOG_FILE_WRITE_MAX_DAYS    int64  = 30                // 保留天数
+	GCONFIG_LOG_FILE_WRITE_COMPRESS    int64  = 0                 // 是否压缩历史文件 (0关闭 1开启)
+
 )
