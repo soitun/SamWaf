@@ -46,6 +46,7 @@ type Hosts struct {
 	DefaultEncoding      string `json:"default_encoding"`         //默认编码 utf-8 或者 gbk  auto字符串自动选择
 	LogOnlyMode          int    `json:"log_only_mode"`            //仅记录模式 1开启 0关闭
 	CustomHeadersJSON    string `json:"custom_headers_json"`      //自定义头信息配置 json
+	IPMode               string `json:"ip_mode"`                  //IP提取模式: "nic" 网卡模式 或 "proxy" 代理模式
 }
 
 type HostsDefense struct {
@@ -248,4 +249,16 @@ func ParseCustomHeadersConfig(customHeadersJSON string) CustomHeadersConfig {
 		}
 	}
 	return config
+}
+
+// GetClientIPByMode 根据IP模式获取客户端IP
+// ipMode: "nic" 网卡模式使用 NetSrcIp，"proxy" 代理模式使用 SRC_IP
+// netSrcIp: 从网卡获取的IP (r.RemoteAddr)
+// srcIP: 从代理头获取的IP (X-Forwarded-For等)
+func GetClientIPByMode(ipMode string, netSrcIp string, srcIP string) string {
+	if ipMode == "proxy" {
+		return srcIP
+	}
+	// 默认使用网卡模式
+	return netSrcIp
 }

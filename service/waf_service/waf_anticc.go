@@ -37,7 +37,6 @@ func (receiver *WafAntiCCService) AddApi(req request.WafAntiCCAddReq) error {
 		Url:           req.Url,
 		Remarks:       req.Remarks,
 		LimitMode:     req.LimitMode,
-		IPMode:        req.IPMode,
 		IsEnableRule:  req.IsEnableRule,
 		RuleContent:   req.RuleContent,
 	}
@@ -65,7 +64,6 @@ func (receiver *WafAntiCCService) ModifyApi(req request.WafAntiCCEditReq) error 
 		"Remarks":       req.Remarks,
 		"UPDATE_TIME":   customtype.JsonTime(time.Now()),
 		"LimitMode":     req.LimitMode,
-		"IPMode":        req.IPMode,
 		"IsEnableRule":  req.IsEnableRule,
 		"RuleContent":   req.RuleContent,
 	}

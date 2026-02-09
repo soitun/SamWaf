@@ -158,7 +158,7 @@ func GetService() *CaptchaService {
 }
 
 // HandleCaptchaRequest 处理验证码请求
-func (s *CaptchaService) HandleCaptchaRequest(w http.ResponseWriter, r *http.Request, weblog *innerbean.WebLog, captchaConfig model.CaptchaConfig, pathPrefix string) {
+func (s *CaptchaService) HandleCaptchaRequest(w http.ResponseWriter, r *http.Request, weblog *innerbean.WebLog, captchaConfig model.CaptchaConfig, pathPrefix string, ipMode string) {
 
 	path := r.URL.Path
 	// 记录访问日志
@@ -177,7 +177,7 @@ func (s *CaptchaService) HandleCaptchaRequest(w http.ResponseWriter, r *http.Req
 		} else if strings.HasPrefix(path, captchaPath+"/verify") {
 			// 根据请求参数确定验证码类型
 			captchaType := r.URL.Query().Get("type")
-			s.VerifyCaptcha(w, r, captchaType, weblog, captchaConfig)
+			s.VerifyCaptcha(w, r, captchaType, weblog, captchaConfig, ipMode)
 		} else if strings.HasPrefix(path, captchaPath+"/") {
 			cleanPath := strings.TrimPrefix(path, captchaPath+"/")
 			s.ServeStaticFile(w, r, cleanPath, captchaConfig)
@@ -196,7 +196,7 @@ func (s *CaptchaService) HandleCaptchaRequest(w http.ResponseWriter, r *http.Req
 		} else if strings.HasPrefix(path, captchaPath+"/redeem") {
 			s.VerifyCapJsCaptcha(w, r, captchaConfig)
 		} else if strings.HasPrefix(path, captchaPath+"/validate") {
-			s.ValidateCapJsCaptcha(w, r, captchaConfig, weblog)
+			s.ValidateCapJsCaptcha(w, r, captchaConfig, weblog, ipMode)
 		} else if strings.HasPrefix(path, captchaPath+"/") {
 			cleanPath := strings.TrimPrefix(path, captchaPath+"/")
 			s.ServeStaticFile(w, r, cleanPath, captchaConfig)
@@ -407,12 +407,9 @@ func (s *CaptchaService) GetClickBasicCaptData(w http.ResponseWriter, r *http.Re
 }
 
 // VerifyCaptcha 验证验证码
-func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, captchaType string, webLog *innerbean.WebLog, captchaConfig model.CaptchaConfig) {
-	// 根据IP模式选择使用的IP
-	clientIP := webLog.NetSrcIp
-	if captchaConfig.IPMode == "proxy" {
-		clientIP = webLog.SRC_IP
-	}
+func (s *CaptchaService) VerifyCaptcha(w http.ResponseWriter, r *http.Request, captchaType string, webLog *innerbean.WebLog, captchaConfig model.CaptchaConfig, ipMode string) {
+	// 根据IP模式选择使用的IP（从 Host 级别传入）
+	clientIP := model.GetClientIPByMode(ipMode, webLog.NetSrcIp, webLog.SRC_IP)
 	code := 1
 	_ = r.ParseForm()
 	dots := r.Form.Get("dots")
@@ -667,7 +664,7 @@ func (s *CaptchaService) VerifyCapJsCaptcha(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(response)
 }
 
-func (s *CaptchaService) ValidateCapJsCaptcha(w http.ResponseWriter, r *http.Request, configStruct model.CaptchaConfig, webLog *innerbean.WebLog) {
+func (s *CaptchaService) ValidateCapJsCaptcha(w http.ResponseWriter, r *http.Request, configStruct model.CaptchaConfig, webLog *innerbean.WebLog, ipMode string) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -689,11 +686,8 @@ func (s *CaptchaService) ValidateCapJsCaptcha(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// 根据IP模式选择使用的IP
-	clientIP := webLog.NetSrcIp
-	if configStruct.IPMode == "proxy" {
-		clientIP = webLog.SRC_IP
-	}
+	// 根据IP模式选择使用的IP（从 Host 级别传入）
+	clientIP := model.GetClientIPByMode(ipMode, webLog.NetSrcIp, webLog.SRC_IP)
 
 	result, err := s.capJsCapt.ValidateToken(req.Token, nil)
 	if err != nil {

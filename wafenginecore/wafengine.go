@@ -418,8 +418,9 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// 检测是否已经被CC封禁
-		ccCacheKey := enums.CACHE_CCVISITBAN_PRE + weblogbean.NetSrcIp
+		// 检测是否已经被CC封禁（使用与CC检测相同的IP模式）
+		ccCheckIP := model.GetClientIPByMode(hostTarget.Host.IPMode, weblogbean.NetSrcIp, weblogbean.SRC_IP)
+		ccCacheKey := enums.CACHE_CCVISITBAN_PRE + ccCheckIP
 		if global.GCACHE_WAFCACHE.IsKeyExist(ccCacheKey) {
 			// 使用新的IP封禁消息格式
 			regionStr := strings.Join(region, ",")
@@ -432,7 +433,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					OperaType: "CC封禁提醒",
 					Server:    serverName,
 				},
-				Ip:       weblogbean.NetSrcIp + " (" + regionStr + ")",
+				Ip:       ccCheckIP + " (" + regionStr + ")",
 				Reason:   "CC攻击，访问频次过高",
 				Duration: 0, // CC封禁时长由配置决定
 				Time:     time.Now().Format("2006-01-02 15:04:05"),
@@ -580,7 +581,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				captchaConfig := model.ParseCaptchaConfig(hostTarget.Host.CaptchaJSON)
 
 				if captchaConfig.IsEnableCaptcha == 1 {
-					if !waf.checkCaptchaToken(r, weblogbean, captchaConfig) {
+					if !waf.checkCaptchaToken(r, weblogbean, captchaConfig, hostTarget.Host.IPMode) {
 						// 检查当前URL是否在排除列表中
 						currentURL := strings.ToLower(r.URL.Path)
 						isExcluded := false
@@ -593,7 +594,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 						// 检查是否是验证码相关路径，如果是则直接处理
 						if strings.HasPrefix(currentURL, captchaPathPrefix+"/") || currentURL == captchaPathPrefix {
-							waf.handleCaptchaRequest(w, r, &weblogbean, captchaConfig, captchaPathPrefix)
+							waf.handleCaptchaRequest(w, r, &weblogbean, captchaConfig, captchaPathPrefix, hostTarget.Host.IPMode)
 							return
 						}
 
@@ -610,7 +611,7 @@ func (waf *WafEngine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							}
 						}
 						if !isExcluded {
-							waf.handleCaptchaRequest(w, r, &weblogbean, captchaConfig, captchaPathPrefix)
+							waf.handleCaptchaRequest(w, r, &weblogbean, captchaConfig, captchaPathPrefix, hostTarget.Host.IPMode)
 							return
 						}
 					}

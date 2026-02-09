@@ -511,6 +511,68 @@ func RunCoreDBMigrations(db *gorm.DB) error {
 				return nil
 			},
 		},
+		// 迁移14: 为 hosts 表添加 ip_mode 字段（IP提取模式统一管理）
+		{
+			ID: "202602090001_add_hosts_ip_mode",
+			Migrate: func(tx *gorm.DB) error {
+				zlog.Info("迁移 202602090001: 为 hosts 表添加 ip_mode 字段")
+
+				// 检查字段是否已存在
+				if tx.Migrator().HasColumn(&model.Hosts{}, "ip_mode") {
+					zlog.Info("ip_mode 字段已存在，跳过添加")
+					return nil
+				}
+
+				// 添加字段
+				if err := tx.Migrator().AddColumn(&model.Hosts{}, "ip_mode"); err != nil {
+					return fmt.Errorf("添加 ip_mode 字段失败: %w", err)
+				}
+
+				zlog.Info("ip_mode 字段添加成功，开始迁移老数据...")
+
+				// 迁移老数据：从 anti_ccs 和 captcha_json 中读取 ip_mode
+				var hosts []model.Hosts
+				if err := tx.Find(&hosts).Error; err != nil {
+					zlog.Warn("查询 hosts 记录失败", "error", err.Error())
+					return nil // 非致命错误，继续执行
+				}
+
+				for _, host := range hosts {
+					ipMode := "nic" // 默认值
+
+					// 1. 优先从 anti_ccs 表读取
+					var antiCC model.AntiCC
+					if err := tx.Where("host_code = ?", host.Code).First(&antiCC).Error; err == nil {
+						if antiCC.IPMode == "proxy" {
+							ipMode = "proxy"
+						}
+					}
+
+					// 2. 如果还是 nic，尝试从 captcha_json 读取
+					if ipMode == "nic" && host.CaptchaJSON != "" {
+						captchaConfig := model.ParseCaptchaConfig(host.CaptchaJSON)
+						if captchaConfig.IPMode == "proxy" {
+							ipMode = "proxy"
+						}
+					}
+
+					// 3. 更新 host 的 ip_mode
+					if err := tx.Model(&model.Hosts{}).Where("code = ?", host.Code).Update("ip_mode", ipMode).Error; err != nil {
+						zlog.Warn("更新 host ip_mode 失败", "host_code", host.Code, "error", err.Error())
+					}
+				}
+
+				zlog.Info("老数据迁移完成，所有 hosts 记录已设置 ip_mode")
+				return nil
+			},
+			Rollback: func(tx *gorm.DB) error {
+				zlog.Info("回滚 202602090001: 删除 hosts 表的 ip_mode 字段")
+				if tx.Migrator().HasColumn(&model.Hosts{}, "ip_mode") {
+					return tx.Migrator().DropColumn(&model.Hosts{}, "ip_mode")
+				}
+				return nil
+			},
+		},
 	})
 
 	// 执行迁移
