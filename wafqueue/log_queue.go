@@ -4,8 +4,6 @@ import (
 	"SamWaf/common/zlog"
 	"SamWaf/global"
 	"SamWaf/innerbean"
-	"SamWaf/model"
-	"SamWaf/service/waf_service"
 	"SamWaf/wafipban"
 	"SamWaf/waftask"
 	"strconv"
@@ -62,28 +60,13 @@ func ProcessLogDequeEngine() {
 							}
 						}
 					}
-					// 检查攻击日志并发送通知
-					for _, log := range webLogArray {
-						if log.RULE != "" && log.STATUS_CODE >= 400 {
-							// 异步发送攻击通知
-							go func(attackLog *innerbean.WebLog) {
-								title, content := waf_service.WafNotifySenderServiceApp.FormatAttackInfoMessage(
-									attackLog.RULE,
-									attackLog.URL,
-									attackLog.SRC_IP,
-									attackLog.CREATE_TIME,
-								)
-								waf_service.WafNotifySenderServiceApp.SendNotification(model.MSG_TYPE_ATTACK_INFO, title, content)
-							}(log)
-						}
-					}
 					if global.GCONFIG_LOG_PERSIST_ENABLED == 1 {
 						global.GWAF_LOCAL_LOG_DB.CreateInBatches(webLogArray, len(webLogArray))
 					}
 					// 日志流做统计
 					waftask.CollectStatsFromLogs(webLogArray)
 					global.GNOTIFY_KAKFA_SERVICE.ProcessBatchLogs(webLogArray)
-					// 文件日志写入 (额外输出)
+					// 文件日志写入
 					global.GNOTIFY_LOG_FILE_WRITER.ProcessBatchLogs(webLogArray)
 				}
 			}
