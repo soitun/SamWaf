@@ -903,6 +903,28 @@ func (waf *WafEngine) modifyResponse() func(*http.Response) error {
 			resp.Header.Del("X-Powered-By")
 		}
 		r := resp.Request
+
+		// 应用自定义响应头信息
+		if wafCtx, ok := r.Context().Value("waf_context").(innerbean.WafHttpContextData); ok {
+			host := waf.HostCode[wafCtx.HostCode]
+			if hostTarget, exists := waf.HostTarget[host]; exists {
+				customResponseHeadersConfig := model.ParseCustomResponseHeadersConfig(hostTarget.Host.CustomResponseHeadersJSON)
+				if customResponseHeadersConfig.IsEnableCustomHeaders == 1 {
+					clientIP := r.RemoteAddr
+					if idx := strings.LastIndex(clientIP, ":"); idx != -1 {
+						clientIP = clientIP[:idx]
+					}
+					for _, header := range customResponseHeadersConfig.Headers {
+						if header.HeaderName == "" {
+							continue
+						}
+						headerValue := waf.parseHeaderValue(header.HeaderValue, r, clientIP)
+						resp.Header.Set(header.HeaderName, headerValue)
+					}
+				}
+			}
+		}
+
 		// 检查是否为WebSocket协议切换
 		if resp.StatusCode == http.StatusSwitchingProtocols {
 
