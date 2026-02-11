@@ -4,6 +4,7 @@ import (
 	"SamWaf/cache"
 	"SamWaf/common/gwebsocket"
 	"SamWaf/common/queue"
+	"SamWaf/iplocation"
 	"SamWaf/model"
 	"SamWaf/model/spec"
 	"SamWaf/wafnotify"
@@ -119,10 +120,19 @@ var (
 	GWAF_HTTP_SENSITIVE_REPLACE_STRING = "**" //HTTP 敏感内容替换成
 
 	/*********IP相关**************/
-	GCACHE_IP_CBUFF            []byte         // IP相关缓存
-	GCACHE_IP_V6_COUNTRY_CBUFF []byte         // IPv6国家相关缓存
-	GCACHE_IPV4_SEARCHER       *xdb.Searcher  //IPV4得查询器
-	GCACHE_IPV6_SEARCHER       *geoip2.Reader // IPV6得查询器
+	GCACHE_IP_CBUFF            []byte         // IP相关缓存 (已废弃，由 GIPLOCATION_MANAGER 管理)
+	GCACHE_IP_V6_COUNTRY_CBUFF []byte         // IPv6国家相关缓存 (已废弃，由 GIPLOCATION_MANAGER 管理)
+	GCACHE_IPV4_SEARCHER       *xdb.Searcher  //IPV4得查询器 (已废弃，由 GIPLOCATION_MANAGER 管理)
+	GCACHE_IPV6_SEARCHER       *geoip2.Reader // IPV6得查询器 (已废弃，由 GIPLOCATION_MANAGER 管理)
+
+	// IP 数据库配置
+	GCONFIG_IP_V4_SOURCE string = "ip2region" // IPv4 数据来源: ip2region / geolite2
+	GCONFIG_IP_V6_SOURCE string = "geolite2"  // IPv6 数据来源: ip2region / geolite2
+	GCONFIG_IP_V4_FORMAT string = "legacy"    // IPv4 xdb 字段格式
+	GCONFIG_IP_V6_FORMAT string = "legacy"    // IPv6 xdb 字段格式（仅 ip2region 时有效）
+
+	// IP Location Manager 全局实例
+	GIPLOCATION_MANAGER *iplocation.Manager
 
 	GDATA_DELETE_INTERVAL int64 = 180 // 删除180天前的数据
 

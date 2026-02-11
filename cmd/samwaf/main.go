@@ -7,6 +7,7 @@ import (
 	"SamWaf/enums"
 	"SamWaf/global"
 	"SamWaf/globalobj"
+	"SamWaf/iplocation"
 	"SamWaf/model"
 	"SamWaf/model/wafenginmodel"
 	"SamWaf/plugin"
@@ -149,38 +150,83 @@ func (m *wafSystenService) run() {
 	zlog.Info("执行位置:", executablePath)
 	global.GWAF_RUNTIME_CURRENT_EXEPATH = executablePath
 	//初始化步骤[加载ip数据库]
-	// 从嵌入的文件中读取内容
+	// 创建 IP Location Manager
+	global.GIPLOCATION_MANAGER = iplocation.NewManager()
 
-	// 拼接文件路径
+	// 加载 IPv4 数据库
 	ip2RegionFilePath := filepath.Join(utils.GetCurrentDir(), "data", "ip2region.xdb")
-	// 检查文件是否存在
+	var ipv4Data []byte
 	if _, err := os.Stat(ip2RegionFilePath); os.IsNotExist(err) {
-		global.GCACHE_IP_CBUFF = Ip2regionBytes
+		// 使用内置数据
+		ipv4Data = Ip2regionBytes
+		zlog.Info("Using embedded IPv4 database, size: ", len(ipv4Data))
 	} else {
-		// 读取文件内容
+		// 读取外部文件
 		fileBytes, err := ioutil.ReadFile(ip2RegionFilePath)
 		if err != nil {
 			log.Fatalf("Failed to read IP database file ip2region.xdb: %v", err)
 		}
-		global.GCACHE_IP_CBUFF = fileBytes
-		// 检查是否成功读取
-		zlog.Info("IP database ip2region.xdb loaded into cache, size: ", len(global.GCACHE_IP_CBUFF), ip2RegionFilePath)
+		ipv4Data = fileBytes
+		zlog.Info("IPv4 database ip2region.xdb loaded from file, size: ", len(ipv4Data), ip2RegionFilePath)
 	}
 
-	//检测是否存在IPV6得数据包
-	ipv6RegionFilePath := filepath.Join(utils.GetCurrentDir(), "data", "GeoLite2-Country.mmdb")
-	// 检查文件是否存在
-	if _, err := os.Stat(ipv6RegionFilePath); os.IsNotExist(err) {
-		global.GCACHE_IP_V6_COUNTRY_CBUFF = Ipv6CountryBytes
-	} else {
-		// 读取文件内容
-		fileBytes, err := ioutil.ReadFile(ipv6RegionFilePath)
+	// 根据配置加载 IPv4 数据库
+	if global.GCONFIG_IP_V4_SOURCE == "ip2region" {
+		err := global.GIPLOCATION_MANAGER.LoadV4Ip2Region(ipv4Data, iplocation.DBFormat(global.GCONFIG_IP_V4_FORMAT))
 		if err != nil {
-			log.Fatalf("Failed to read IPv6 database file GeoLite2-Country.mmdb: %v", err)
+			log.Fatalf("Failed to load IPv4 ip2region database: %v", err)
 		}
-		global.GCACHE_IP_V6_COUNTRY_CBUFF = fileBytes
-		// 检查是否成功读取
-		zlog.Info("IPv6 database file GeoLite2-Country.mmdb loaded into cache, size: ", len(global.GCACHE_IP_V6_COUNTRY_CBUFF), ipv6RegionFilePath)
+		zlog.Info("IPv4 ip2region database loaded successfully")
+	} else if global.GCONFIG_IP_V4_SOURCE == "geolite2" {
+		err := global.GIPLOCATION_MANAGER.LoadV4GeoLite2(ipv4Data)
+		if err != nil {
+			log.Fatalf("Failed to load IPv4 GeoLite2 database: %v", err)
+		}
+		zlog.Info("IPv4 GeoLite2 database loaded successfully")
+	}
+
+	// 加载 IPv6 数据库
+	if global.GCONFIG_IP_V6_SOURCE == "ip2region" {
+		// IPv6 ip2region 需要单独的文件
+		ipv6Ip2RegionPath := filepath.Join(utils.GetCurrentDir(), "data", "ip2region_v6.xdb")
+		if _, err := os.Stat(ipv6Ip2RegionPath); err == nil {
+			fileBytes, err := ioutil.ReadFile(ipv6Ip2RegionPath)
+			if err != nil {
+				zlog.Warn("Failed to read IPv6 ip2region database file: ", err)
+			} else {
+				err = global.GIPLOCATION_MANAGER.LoadV6Ip2Region(fileBytes, iplocation.DBFormat(global.GCONFIG_IP_V6_FORMAT))
+				if err != nil {
+					zlog.Warn("Failed to load IPv6 ip2region database: ", err)
+				} else {
+					zlog.Info("IPv6 ip2region database loaded successfully, size: ", len(fileBytes))
+				}
+			}
+		} else {
+			zlog.Warn("IPv6 ip2region database file not found, please upload ip2region_v6.xdb")
+		}
+	} else if global.GCONFIG_IP_V6_SOURCE == "geolite2" {
+		// IPv6 GeoLite2
+		ipv6GeoLitePath := filepath.Join(utils.GetCurrentDir(), "data", "GeoLite2-Country.mmdb")
+		var ipv6Data []byte
+		if _, err := os.Stat(ipv6GeoLitePath); os.IsNotExist(err) {
+			// 使用内置数据
+			ipv6Data = Ipv6CountryBytes
+			zlog.Info("Using embedded IPv6 GeoLite2 database, size: ", len(ipv6Data))
+		} else {
+			// 读取外部文件
+			fileBytes, err := ioutil.ReadFile(ipv6GeoLitePath)
+			if err != nil {
+				log.Fatalf("Failed to read IPv6 GeoLite2 database file: %v", err)
+			}
+			ipv6Data = fileBytes
+			zlog.Info("IPv6 GeoLite2 database loaded from file, size: ", len(ipv6Data), ipv6GeoLitePath)
+		}
+
+		err := global.GIPLOCATION_MANAGER.LoadV6GeoLite2(ipv6Data)
+		if err != nil {
+			log.Fatalf("Failed to load IPv6 GeoLite2 database: %v", err)
+		}
+		zlog.Info("IPv6 GeoLite2 database loaded successfully")
 	}
 	global.GWAF_DLP_CONFIG = ldpConfig
 	global.GWAF_REG_PUBLIC_KEY = publicKey

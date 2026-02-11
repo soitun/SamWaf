@@ -3,6 +3,7 @@ package waftask
 import (
 	"SamWaf/common/zlog"
 	"SamWaf/global"
+	"SamWaf/iplocation"
 	"SamWaf/model"
 	"SamWaf/model/request"
 	"SamWaf/wafipban"
@@ -243,6 +244,34 @@ func setConfigStringValue(name string, value string, change int) {
 	case "log_file_write_custom_tpl":
 		global.GCONFIG_LOG_FILE_WRITE_CUSTOM_TPL = value
 		syncLogFileWriterConfig()
+	case "ip_v4_source":
+		global.GCONFIG_IP_V4_SOURCE = value
+		if change == 1 {
+			zlog.Info("IPv4 数据源配置已更改为: ", value)
+		}
+	case "ip_v6_source":
+		global.GCONFIG_IP_V6_SOURCE = value
+		if change == 1 {
+			zlog.Info("IPv6 数据源配置已更改为: ", value)
+		}
+	case "ip_v4_format":
+		global.GCONFIG_IP_V4_FORMAT = value
+		if change == 1 {
+			// 重新加载 IPv4 数据库
+			if global.GIPLOCATION_MANAGER != nil {
+				global.GIPLOCATION_MANAGER.SetV4Format(iplocation.DBFormat(value))
+				zlog.Info("IPv4 数据格式配置已更改为: ", value)
+			}
+		}
+	case "ip_v6_format":
+		global.GCONFIG_IP_V6_FORMAT = value
+		if change == 1 {
+			// 重新加载 IPv6 数据库
+			if global.GIPLOCATION_MANAGER != nil {
+				global.GIPLOCATION_MANAGER.SetV6Format(iplocation.DBFormat(value))
+				zlog.Info("IPv6 数据格式配置已更改为: ", value)
+			}
+		}
 	default:
 		zlog.Warn("Unknown config item:", name)
 	}
@@ -379,6 +408,20 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigStringItem(initLoad, "ssl", "zerossl_access_key", global.GCONFIG_ZEROSSL_ACCESS_KEY, "zerossl访问key", "string", "", configMap)
 	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_kid", global.GCONFIG_ZEROSSL_EAB_KID, "zerossl eab_kid", "string", "", configMap)
 	updateConfigStringItem(initLoad, "ssl", "zerossl_eab_hmac_key", global.GCONFIG_ZEROSSL_EAB_HMAC_KEY, "zerossl eab_hmac_key", "string", "", configMap)
+
+	// IP数据库配置
+	updateConfigStringItem(initLoad, "ip_database", "ip_v4_source",
+		global.GCONFIG_IP_V4_SOURCE, "IPv4数据库来源",
+		"options", "ip2region|ip2region,geolite2|GeoLite2", configMap)
+	updateConfigStringItem(initLoad, "ip_database", "ip_v6_source",
+		global.GCONFIG_IP_V6_SOURCE, "IPv6数据库来源",
+		"options", "ip2region|ip2region,geolite2|GeoLite2", configMap)
+	updateConfigStringItem(initLoad, "ip_database", "ip_v4_format",
+		global.GCONFIG_IP_V4_FORMAT, "IPv4 xdb字段格式",
+		"options", "legacy|老版本,opensource|开源版,full|满载版,standard|标准版,compact|精简版", configMap)
+	updateConfigStringItem(initLoad, "ip_database", "ip_v6_format",
+		global.GCONFIG_IP_V6_FORMAT, "IPv6 xdb字段格式(仅ip2region时有效)",
+		"options", "legacy|老版本,opensource|开源版,full|满载版,standard|标准版,compact|精简版", configMap)
 
 	// 日志文件写入相关配置
 	updateConfigIntItem(initLoad, "logfile", "log_file_write_enable", global.GCONFIG_LOG_FILE_WRITE_ENABLE, "日志文件写入开关（0关闭 1开启）", "options", "0|关闭,1|开启", configMap)

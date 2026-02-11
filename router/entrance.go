@@ -51,6 +51,7 @@ type ApiGroup struct {
 	FirewallIPBlockRouter
 	PluginRouter
 	LogFileWriteRouter
+	IPLocationRouter
 }
 type PublicApiGroup struct {
 	LoginRouter
