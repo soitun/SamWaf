@@ -132,34 +132,38 @@ func checkBackendHealth(host model.Hosts, ip string, port int, config model.Heal
 	// 解析预期状态码
 	expectedCodes := parseExpectedCodes(config.ExpectedCodes)
 
-	client := &http.Client{
-		Timeout: time.Duration(config.ResponseTime) * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-			ResponseHeaderTimeout: time.Duration(config.ResponseTime) * time.Second,
-			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-				dialer := net.Dialer{
-					Timeout: time.Duration(config.ResponseTime) * time.Second,
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+		DisableKeepAlives:     true, // 禁用Keep-Alive，防止连接池累积导致连接泄漏
+		ResponseHeaderTimeout: time.Duration(config.ResponseTime) * time.Second,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			dialer := net.Dialer{
+				Timeout: time.Duration(config.ResponseTime) * time.Second,
+			}
+			if host.IsEnableLoadBalance > 0 {
+				conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, strconv.Itoa(port)))
+				if err == nil {
+					return conn, nil
 				}
-				if host.IsEnableLoadBalance > 0 {
-					conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip, strconv.Itoa(port)))
+			} else {
+				if host.Remote_ip != "" {
+					conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(host.Remote_ip, strconv.Itoa(host.Remote_port)))
 					if err == nil {
 						return conn, nil
 					}
-				} else {
-					if host.Remote_ip != "" {
-						conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(host.Remote_ip, strconv.Itoa(host.Remote_port)))
-						if err == nil {
-							return conn, nil
-						}
-					}
 				}
+			}
 
-				return dialer.DialContext(ctx, network, addr)
-			},
+			return dialer.DialContext(ctx, network, addr)
 		},
+	}
+	defer transport.CloseIdleConnections() // 确保健康检测完成后释放所有空闲连接
+
+	client := &http.Client{
+		Timeout:   time.Duration(config.ResponseTime) * time.Second,
+		Transport: transport,
 	}
 
 	// 创建请求
@@ -207,22 +211,9 @@ func checkBackendHealth(host model.Hosts, ip string, port int, config model.Heal
 		"耗时(ms)", responseTime,
 		"响应头", fmt.Sprintf("%v", resp.Header))
 
-	// 读取响应体内容（限制大小，避免过大）
-	var bodyBytes []byte
-	if resp.ContentLength > 0 && resp.ContentLength < 1024 {
-		bodyBytes = make([]byte, resp.ContentLength)
-		_, err = resp.Body.Read(bodyBytes)
-		if err == nil || err == io.EOF {
-			zlog.Debug("健康检测响应体", "内容", string(bodyBytes))
-		}
-	} else {
-		// 如果响应体太大或未知大小，只读取前512字节
-		bodyBytes = make([]byte, 512)
-		n, err := resp.Body.Read(bodyBytes)
-		if err == nil || err == io.EOF {
-			zlog.Debug("健康检测响应体(部分)", "内容", string(bodyBytes[:n]))
-		}
-	}
+	// 完全读取并丢弃响应体，确保底层TCP连接能被正确关闭
+	// 不完全读取会导致连接无法复用或释放，造成连接泄漏
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	// 检查状态码是否符合预期
 	isHealthy := false
