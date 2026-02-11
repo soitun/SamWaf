@@ -16,9 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/lionsoul2014/ip2region/binding/golang/xdb"
-	"github.com/oschwald/geoip2-golang"
 )
 
 func GetExternalIp() string {
@@ -149,73 +146,17 @@ func GetPublicIP() string {
 }
 
 func GetCountry(ip string) []string {
-	if IsValidIPv6(ip) {
-		a := "ipv6|ipv6|ipv6|ipv6|ipv6"
-		if global.GCACHE_IPV6_SEARCHER == nil {
-			db, err := geoip2.FromBytes(global.GCACHE_IP_V6_COUNTRY_CBUFF)
-			if err != nil {
-				zlog.Error("Failed to open GeoLite2-Country.mmdb:", err)
-				return strings.Split(a, "|")
-			}
-			global.GCACHE_IPV6_SEARCHER = db
-		}
-		ipv6 := net.ParseIP(ip)
-		record, err := global.GCACHE_IPV6_SEARCHER.Country(ipv6)
-		if err != nil {
-			zlog.Error("Failed to Search GeoLite2-Country.mmdb:", err)
-			return strings.Split(a, "|")
-		}
-		if record.Country.Names == nil {
-			a = "内网" + "||||"
-		} else {
-			a = record.Country.Names["zh-CN"] + "||||"
-		}
-
-		return strings.Split(a, "|")
+	if global.GIPLOCATION_MANAGER != nil {
+		result := global.GIPLOCATION_MANAGER.Lookup(ip)
+		return result.ToSlice() // [国家, 区域, 省份, 城市, ISP]
 	}
-
-	//IPV4得查询逻辑
-	if global.GCACHE_IPV4_SEARCHER == nil {
-		// 2、用全局的 cBuff 创建完全基于内存的查询对象。
-		searcher, err := xdb.NewWithBuffer(global.GCACHE_IP_CBUFF)
-		if err != nil {
-			fmt.Printf("failed to create searcher with content: %s\n", err)
-
-		}
-		global.GCACHE_IPV4_SEARCHER = searcher
-	}
-
-	// do the search
-	var tStart = time.Now()
-
-	// 备注：并发使用，每个 goroutine 需要创建一个独立的 searcher 对象。
-	region, err := global.GCACHE_IPV4_SEARCHER.SearchByStr(ip)
-	if err != nil {
-		fmt.Printf("failed to SearchIP(%s): %s\n", ip, err)
-		return []string{"无", "无"}
-	}
-
-	zlog.Debug("{region: %s, took: %s}\n", region, time.Since(tStart))
-	regions := strings.Split(region, "|")
-	//如果是内网IP情况下显示内网的内容
-	if regions[4] == "内网IP" {
-		regions[0] = "内网"
-		regions[1] = "内网"
-		regions[2] = "内网"
-	}
-	return regions
+	return []string{"未知", "", "", "", ""}
 }
 
 // CloseIPDatabase 关闭IP数据库
 func CloseIPDatabase() {
-	if global.GCACHE_IPV4_SEARCHER != nil {
-		global.GCACHE_IPV4_SEARCHER.Close()
-	}
-	if global.GCACHE_IPV6_SEARCHER != nil {
-		err := global.GCACHE_IPV6_SEARCHER.Close()
-		if err != nil {
-			return
-		}
+	if global.GIPLOCATION_MANAGER != nil {
+		global.GIPLOCATION_MANAGER.Close()
 	}
 }
 

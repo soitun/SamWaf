@@ -23,7 +23,7 @@ require (
 	github.com/hashicorp/go-plugin v1.7.0
 	github.com/hyperjumptech/grule-rule-engine v1.15.0
 	github.com/kardianos/service v1.2.2
-	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20220907060842-b2ba5d58e48d
+	github.com/lionsoul2014/ip2region/binding/golang v0.0.0-20260202110255-d427b4dcd879
 	github.com/oschwald/geoip2-golang v1.11.0
 	github.com/pires/go-proxyproto v0.8.1
 	github.com/pquerna/otp v1.5.0
@@ -111,6 +111,7 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.69 // indirect
+	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
