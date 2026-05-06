@@ -7,6 +7,7 @@ var (
 	GCONFIG_RECORD_MAX_RES_BODY_LENGTH  int64  = 1024 * 4            //限制记录最大响应的body长度 record_max_rep_body_length
 	GCONFIG_RECORD_RESP                 int64  = 0                   // 是否记录响应记录 record_resp
 	GCONFIG_RECORD_PROXY_HEADER         string = ""                  //配置获取IP头信息
+	GCONFIG_MANAGE_PROXY_HEADER         string = ""                  //管理端获取客户端IP头信息，留空则直接取网络IP
 	GCONFIG_RECORD_AUTO_LOAD_SSL        int64  = 1                   //是否每天凌晨3点自动加载ssl证书
 	GCONFIG_RECORD_KAFKA_ENABLE         int64  = 0                   //kafka 是否激活
 	GCONFIG_RECORD_KAFKA_URL            string = "127.0.0.1:9092"    //kafka url地址

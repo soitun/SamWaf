@@ -43,7 +43,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 		}
 		bean := wafAccountService.GetInfoByLoginApi(req)
 		if bean.Id != "" {
-			clientIP := c.ClientIP()
+			clientIP := utils.GetManageClientIP(c)
 			clientCountry := utils.GetCountry(clientIP)
 			// 检查客户端的登录错误次数
 			cacheKey := enums.CACHE_LOGIN_ERROR + clientIP
@@ -140,7 +140,7 @@ func (w *WafLoginApi) LoginApi(c *gin.Context) {
 
 			//记录状态
 			accessToken := utils.Md5String(uuid.GenUUID())
-			tokenInfo := wafTokenInfoService.AddApiWithFingerprintAndType(bean.LoginAccount, accessToken, c.ClientIP(), deviceFingerprint, loginType)
+			tokenInfo := wafTokenInfoService.AddApiWithFingerprintAndType(bean.LoginAccount, accessToken, utils.GetManageClientIP(c), deviceFingerprint, loginType)
 
 			//令牌记录到cache里
 			global.GCACHE_WAFCACHE.SetWithTTl(enums.CACHE_TOKEN+accessToken, *tokenInfo, time.Duration(global.GCONFIG_RECORD_TOKEN_EXPIRE_MINTUTES)*time.Minute)
