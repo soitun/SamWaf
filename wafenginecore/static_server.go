@@ -502,7 +502,6 @@ func (waf *WafEngine) setSecurityHeaders(w http.ResponseWriter, config model.Sta
 func (waf *WafEngine) logStaticFileAccess(path, remoteAddr string, fileSize int64, weblog *innerbean.WebLog, hostsafe *wafenginmodel.HostSafe) {
 	// 更新weblog信息
 	weblog.ACTION = "放行"
-	weblog.RULE = "静态文件访问成功"
 	weblog.RISK_LEVEL = 0 // 无风险
 
 	// 按照全局日志记录策略决定是否记录
