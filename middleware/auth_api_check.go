@@ -82,7 +82,7 @@ func Auth() gin.HandlerFunc {
 				tokenInfo := global.GCACHE_WAFCACHE.Get(enums.CACHE_TOKEN + tokenStr).(model.TokenInfo)
 
 				// IP检查逻辑
-				currentIP := c.ClientIP()
+				currentIP := utils.GetManageClientIP(c)
 				ipMatched := false
 
 				// 如果启用严格IP绑定，进行严格IP检查

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"SamWaf/global"
+	"SamWaf/utils"
 	"github.com/gin-gonic/gin"
 	"net"
 	"net/http"
@@ -11,7 +12,7 @@ import (
 // IPWhitelist IP白名单中间件
 func IPWhitelist() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
+		clientIP := utils.GetManageClientIP(c)
 		allowed := false
 
 		allowedIPs := strings.Split(global.GWAF_IP_WHITELIST, ",")

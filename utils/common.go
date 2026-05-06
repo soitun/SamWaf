@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func GetExternalIp() string {
@@ -399,4 +401,29 @@ func IsIP(input string) bool {
 	// 使用 net.ParseIP 解析
 	// 如果是有效的 IP，返回非 nil
 	return net.ParseIP(input) != nil
+}
+
+// GetManageClientIP 获取管理端客户端真实IP。
+// 若 GCONFIG_MANAGE_PROXY_HEADER 为空（默认），直接返回网络层 IP（c.RemoteIP()），
+// 防止未经信任的 X-Forwarded-For 被接受。
+// 若已配置代理头（逗号分隔，按优先级排列），依次读取首个有效 IP；全部失败则回退到网络层 IP。
+func GetManageClientIP(c *gin.Context) string {
+	if global.GCONFIG_MANAGE_PROXY_HEADER == "" {
+		return c.RemoteIP()
+	}
+	for _, header := range strings.Split(global.GCONFIG_MANAGE_PROXY_HEADER, ",") {
+		header = strings.TrimSpace(header)
+		if header == "" {
+			continue
+		}
+		val := c.GetHeader(header)
+		if val == "" {
+			continue
+		}
+		ip := strings.TrimSpace(strings.SplitN(val, ",", 2)[0])
+		if IsValidIPv4(ip) || IsValidIPv6(ip) {
+			return ip
+		}
+	}
+	return c.RemoteIP()
 }

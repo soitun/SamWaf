@@ -212,6 +212,9 @@ func setConfigStringValue(name string, value string, change int) {
 	case "gwaf_proxy_header":
 		global.GCONFIG_RECORD_PROXY_HEADER = value
 		break
+	case "gwaf_manage_proxy_header":
+		global.GCONFIG_MANAGE_PROXY_HEADER = value
+		break
 	case "owasp_mode":
 		switch value {
 		case "On", "DetectionOnly", "Off":
@@ -379,6 +382,7 @@ func TaskLoadSetting(initLoad bool) {
 	updateConfigStringItem(initLoad, "system", "gwaf_center_enable", global.GWAF_CENTER_ENABLE, "中心开关", "bool", "false|关闭,true|开启", configMap)
 	updateConfigStringItem(initLoad, "system", "gwaf_center_url", global.GWAF_CENTER_URL, "中心URL", "string", "", configMap)
 	updateConfigStringItem(initLoad, "system", "gwaf_proxy_header", global.GCONFIG_RECORD_PROXY_HEADER, "获取访客IP头信息（按照顺序）比如:X-Forwarded-For,X-Real-IP ,留空则提取的是直接访客IP", "string", "", configMap)
+	updateConfigStringItem(initLoad, "system", "gwaf_manage_proxy_header", global.GCONFIG_MANAGE_PROXY_HEADER, "管理端获取客户端IP头信息（按优先级逗号分隔，如 X-Forwarded-For,X-Real-IP,CF-Connecting-IP），留空则直接取网络IP", "string", "", configMap)
 
 	updateConfigIntItem(initLoad, "kafka", "kafka_enable", global.GCONFIG_RECORD_KAFKA_ENABLE, "kafka 是否激活", "int", "", configMap)
 	updateConfigStringItem(initLoad, "kafka", "kafka_url", global.GCONFIG_RECORD_KAFKA_URL, "kafka url地址", "string", "", configMap)
