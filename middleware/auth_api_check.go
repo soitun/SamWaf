@@ -56,7 +56,7 @@ func Auth() gin.HandlerFunc {
 		// 获取请求头中 token，实际是一个完整被签名过的 token；a complete, signed token
 		tokenStr := extractTokenStr(c)
 		if tokenStr == "" {
-			zlog.Debug("无token")
+			zlog.Debug(fmt.Sprintf("请求未携带令牌 path:%v 来源IP:%v", c.Request.URL.Path, utils.GetManageClientIP(c)))
 
 			response.AuthFailWithMessage("鉴权失败", c)
 			c.Abort()
@@ -238,15 +238,29 @@ func bindFailCounterTTL() time.Duration {
 func extractTokenStr(c *gin.Context) string {
 	reqPath := c.Request.URL.Path
 	if reqPath == "/api/v1/ws" {
-		return c.GetHeader("Sec-WebSocket-Protocol")
+		return normalizeTokenStr(c.GetHeader("Sec-WebSocket-Protocol"))
 	}
 	if strings.HasPrefix(reqPath, "/api/v1/waflog/attack/download") {
-		return c.Query("X-Token")
+		return normalizeTokenStr(c.Query("X-Token"))
 	}
 	if c.GetHeader("X-Login-Type") == "mobile" {
-		return c.GetHeader("X-Mobile-Token")
+		return normalizeTokenStr(c.GetHeader("X-Mobile-Token"))
 	}
-	return c.GetHeader("X-Token")
+	return normalizeTokenStr(c.GetHeader("X-Token"))
+}
+
+// normalizeTokenStr 把"没有令牌"的几种写法统一成空串。
+//
+// 字面量 null/undefined 要当成没有：WebSocket 握手带不了自定义头，令牌只能放进子协议，
+// 而浏览器会把 JS 里的 null 原样字符串化发出来。不归一的话它是个非空字符串，
+// 会一路走到缓存查询并被判成"令牌不存在"——日志上看就像有人拿着无效令牌反复试，
+// 实际只是登录页在重连。
+func normalizeTokenStr(raw string) string {
+	token := strings.TrimSpace(raw)
+	if token == "null" || token == "undefined" {
+		return ""
+	}
+	return token
 }
 
 // isFingerprintExemptPath 判断当前请求是否豁免设备指纹比对。

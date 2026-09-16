@@ -112,3 +112,39 @@ func TestFingerprintExemptWithQueryString(t *testing.T) {
 		})
 	}
 }
+
+// 未登录时前端从 localStorage 取不到令牌，浏览器会把 JS 的 null 原样字符串化成 "null"
+// 放进子协议发出来。不归一的话它是个非空字符串，会一路走到缓存查询并被判成"令牌不存在"，
+// 登录页停着不动也会每隔几秒刷一条无效令牌日志。
+func TestExtractTokenStrTreatsNullLiteralAsEmpty(t *testing.T) {
+	cases := []struct {
+		name   string
+		target string
+		header string
+		value  string
+	}{
+		{"WebSocket 子协议 null", "/api/v1/ws", "Sec-WebSocket-Protocol", "null"},
+		{"WebSocket 子协议 undefined", "/api/v1/ws", "Sec-WebSocket-Protocol", "undefined"},
+		{"WebSocket 子协议空白", "/api/v1/ws", "Sec-WebSocket-Protocol", "  "},
+		{"常规请求头 null", "/api/v1/host/list", "X-Token", "null"},
+		{"常规请求头 undefined", "/api/v1/host/list", "X-Token", "undefined"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := ctxFor(t, http.MethodGet, tc.target, map[string]string{tc.header: tc.value})
+			if got := extractTokenStr(c); got != "" {
+				t.Fatalf("%q 应被当作没有令牌，实际取到 %q", tc.value, got)
+			}
+		})
+	}
+}
+
+// 归一化不能误伤正常令牌
+func TestExtractTokenStrKeepsRealToken(t *testing.T) {
+	c := ctxFor(t, http.MethodGet, "/api/v1/host/list", map[string]string{
+		"X-Token": "0d42ce0c1f2a3b4c5d6e7f8091a2b3c4",
+	})
+	if got := extractTokenStr(c); got != "0d42ce0c1f2a3b4c5d6e7f8091a2b3c4" {
+		t.Fatalf("正常令牌被改动了：%q", got)
+	}
+}
